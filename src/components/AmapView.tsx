@@ -16,6 +16,8 @@ export default function AmapView(props: { markers?: MarkerItem[] }) {
   useEffect(() => {
     const key = localStorage.getItem(LS_AMAP_KEY) ?? "";
     const securityJsCode = localStorage.getItem(LS_AMAP_SECURITY) ?? "";
+    
+    if (typeof window === "undefined") return;
 
     if (!key || !securityJsCode) {
       setErr("未设置高德 Key/安全密钥：请先去 /settings 填写后刷新本页。");
