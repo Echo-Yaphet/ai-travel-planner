@@ -3,26 +3,28 @@ name: release-docker-image
 on:
   push:
     tags:
-      - "v*.*.*"  # 仅在打版本标签时触发
+      - "v*.*.*"
+
+permissions:
+  contents: write
+  packages: write
 
 jobs:
   build_push_release:
     runs-on: ubuntu-latest
 
-    permissions:
-      contents: write      # 创建 Release
-      packages: write      # 推送 GHCR
-      actions: read
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-      - name: Set variables
+      - name: Set variables (lowercase GHCR repo)
         run: |
           REPO_LOWER=$(echo "${GITHUB_REPOSITORY}" | tr '[:upper:]' '[:lower:]')
           echo "IMAGE_NAME=ghcr.io/${REPO_LOWER}:latest" >> $GITHUB_ENV
           echo "TAR_NAME=ai-travel-planner_${GITHUB_REF_NAME}.tar" >> $GITHUB_ENV
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -33,25 +35,20 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # 构建镜像（云端能 pull node:20-alpine）
       - name: Build image
-        run: |
-          docker build -t $IMAGE_NAME .
+        run: docker build -t $IMAGE_NAME .
 
-      # 推送到 GHCR（助教也可 docker pull 直接跑）
       - name: Push image
-        run: |
-          docker push $IMAGE_NAME
+        run: docker push $IMAGE_NAME
 
-      # 导出为 tar（满足“可直接下载运行的 docker image 文件”）
       - name: Save image to tar
         run: |
           docker save $IMAGE_NAME -o $TAR_NAME
           ls -lh $TAR_NAME
 
-      # 创建 GitHub Release 并上传 tar
       - name: Create Release and Upload Asset
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ github.ref_name }}
           files: ${{ env.TAR_NAME }}
           generate_release_notes: true
