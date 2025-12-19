@@ -1,13 +1,14 @@
 "use client";
 
+import dynamic from "next/dynamic";
+// 关键：ssr:false，避免构建期/预渲染把地图打进 SSR chunk
+const AmapView = dynamic(() => import("../components/AmapView"), { ssr: false });
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import dynamic from "next/dynamic";
 import VoiceInput from "@/components/VoiceInput";
 import TripsPanel, { TripRow } from "@/components/TripsPanel";
 import ExpensesPanel from "@/components/ExpensesPanel";
 
-const AmapView = dynamic(() => import("@/components/AmapView"), { ssr: false });
 
 export default function Home() {
   const [inputText, setInputText] = useState("");
