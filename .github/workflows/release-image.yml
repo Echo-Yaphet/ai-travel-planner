@@ -3,7 +3,7 @@ name: release-docker-image
 on:
   push:
     tags:
-      - "v0.1.0"   
+      - "v*.*.*"  # 仅在打版本标签时触发
 
 jobs:
   build_push_release:
