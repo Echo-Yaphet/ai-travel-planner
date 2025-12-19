@@ -5,12 +5,14 @@ import Link from "next/link";
 import dynamic from "next/dynamic";
 const AmapView = dynamic(() => import("@/components/AmapView"), { ssr: false });
 import VoiceInput from "@/components/VoiceInput";
+import ExpensesPanel from "@/components/ExpensesPanel";
 
 export default function Home() {
   const [inputText, setInputText] = useState("");
   const [interim, setInterim] = useState("");
   const [plan, setPlan] = useState<any>(null);
   const [loading, setLoading] = useState(false);
+  const [tripKey, setTripKey] = useState<string>("draft");
 
   const markers = useMemo(() => {
     if (!plan?.days) {
@@ -74,8 +76,9 @@ export default function Home() {
                   body: JSON.stringify({ input: inputText }),
                 });
                 const data = await resp.json();
-                if (!resp.ok) throw new Error(data?.error ?? "request failed");
+                if (!resp.ok) throw new Error(`${data?.error ?? "request failed"} (status=${data?.status ?? "?"})\n${data?.detail ?? ""}`);
                 setPlan(data);
+                setTripKey(`trip_${Date.now()}`);
               } catch (e: any) {
                 alert(`生成失败：${e.message ?? e}`);
               } finally {
@@ -89,7 +92,8 @@ export default function Home() {
 
         <div className="rounded border p-3">
           <div className="font-medium mb-2">行程</div>
-
+          <ExpensesPanel tripKey={tripKey} budget={plan?.budget} />
+          
           {!plan ? (
             <ul className="space-y-2 text-sm">
               <li>Day1：故宫 → 南锣鼓巷（示例）</li>
