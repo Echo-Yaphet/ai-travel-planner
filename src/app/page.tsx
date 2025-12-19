@@ -3,16 +3,22 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
-const AmapView = dynamic(() => import("@/components/AmapView"), { ssr: false });
 import VoiceInput from "@/components/VoiceInput";
+import TripsPanel, { TripRow } from "@/components/TripsPanel";
 import ExpensesPanel from "@/components/ExpensesPanel";
+
+const AmapView = dynamic(() => import("@/components/AmapView"), { ssr: false });
 
 export default function Home() {
   const [inputText, setInputText] = useState("");
   const [interim, setInterim] = useState("");
+
   const [plan, setPlan] = useState<any>(null);
   const [loading, setLoading] = useState(false);
+
+  // 本地费用分桶 key（未保存前用 draft；保存后我们会改成 tripId）
   const [tripKey, setTripKey] = useState<string>("draft");
+  const [tripId, setTripId] = useState<string | null>(null);
 
   const markers = useMemo(() => {
     if (!plan?.days) {
@@ -29,8 +35,32 @@ export default function Home() {
         }
       }
     }
-    return list.length ? list : [];
+    return list;
   }, [plan]);
+
+  async function generatePlan() {
+    setLoading(true);
+    try {
+      const resp = await fetch("/api/plan", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ input: inputText }),
+      });
+      const data = await resp.json();
+      if (!resp.ok) throw new Error(`${data?.error ?? "request failed"}\n${data?.detail ?? ""}`);
+
+      setPlan(data);
+
+      // 新计划：视为未保存的草稿
+      setTripId(null);
+      const newDraftKey = `draft_${Date.now()}`;
+      setTripKey(newDraftKey);
+    } catch (e: any) {
+      alert(`生成失败：${e.message ?? e}`);
+    } finally {
+      setLoading(false);
+    }
+  }
 
   return (
     <div className="h-screen grid grid-cols-1 md:grid-cols-[420px_1fr]">
@@ -41,6 +71,21 @@ export default function Home() {
             设置
           </Link>
         </div>
+
+        <TripsPanel
+          currentInput={inputText}
+          currentPlan={plan}
+          onTripIdChange={(id) => {
+            setTripId(id);
+            if (id) setTripKey(id); // 保存后，本地 key 也用 tripId，便于一致性
+          }}
+          onLoadTrip={(t: TripRow) => {
+            setPlan(t.plan);
+            setInputText(t.input_text ?? "");
+            setTripId(t.id);
+            setTripKey(t.id);
+          }}
+        />
 
         <div className="rounded border p-3 space-y-3">
           <div className="font-medium">需求输入</div>
@@ -67,24 +112,7 @@ export default function Home() {
           <button
             className="rounded bg-black text-white px-4 py-2 w-full disabled:opacity-50"
             disabled={loading}
-            onClick={async () => {
-              setLoading(true);
-              try {
-                const resp = await fetch("/api/plan", {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ input: inputText }),
-                });
-                const data = await resp.json();
-                if (!resp.ok) throw new Error(`${data?.error ?? "request failed"} (status=${data?.status ?? "?"})\n${data?.detail ?? ""}`);
-                setPlan(data);
-                setTripKey(`trip_${Date.now()}`);
-              } catch (e: any) {
-                alert(`生成失败：${e.message ?? e}`);
-              } finally {
-                setLoading(false);
-              }
-            }}
+            onClick={generatePlan}
           >
             {loading ? "生成中…" : "生成行程"}
           </button>
@@ -92,8 +120,7 @@ export default function Home() {
 
         <div className="rounded border p-3">
           <div className="font-medium mb-2">行程</div>
-          <ExpensesPanel tripKey={tripKey} budget={plan?.budget} />
-          
+
           {!plan ? (
             <ul className="space-y-2 text-sm">
               <li>Day1：故宫 → 南锣鼓巷（示例）</li>
@@ -123,8 +150,7 @@ export default function Home() {
                   <ul className="mt-2 space-y-1">
                     {(d.items ?? []).map((it: any, idx: number) => (
                       <li key={idx}>
-                        <span className="font-medium">{it.time}</span>{" "}
-                        [{it.type}] {it.name}（¥{it.cost_estimate}）
+                        <span className="font-medium">{it.time}</span> [{it.type}] {it.name}（¥{it.cost_estimate}）
                       </li>
                     ))}
                   </ul>
@@ -133,6 +159,8 @@ export default function Home() {
             </div>
           )}
         </div>
+
+        <ExpensesPanel tripKey={tripKey} tripId={tripId} budget={plan?.budget} />
       </div>
 
       <div className="p-3">
