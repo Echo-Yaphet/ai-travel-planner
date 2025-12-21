@@ -27,9 +27,9 @@ RUN npm ci --omit=dev
 # 运行所需文件
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next ./.next
+
+# 如果你仓库里确实有 next.config.ts，就保留这一行；否则也可以删掉
 COPY --from=builder /app/next.config.ts ./next.config.ts
-COPY --from=builder /app/next.config.js ./next.config.js
-COPY --from=builder /app/next.config.mjs ./next.config.mjs
 
 EXPOSE 3000
 CMD ["npm", "run", "start"]
