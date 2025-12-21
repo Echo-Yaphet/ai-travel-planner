@@ -1,14 +1,15 @@
 "use client";
 
 import dynamic from "next/dynamic";
-// 关键：ssr:false，避免构建期/预渲染把地图打进 SSR chunk
-const AmapView = dynamic(() => import("../components/AmapView"), { ssr: false });
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import VoiceInput from "@/components/VoiceInput";
+
 import TripsPanel, { TripRow } from "@/components/TripsPanel";
 import ExpensesPanel from "@/components/ExpensesPanel";
 
+// 不从组件里 import Props 类型，避免 “no exported member”
+const AmapView = dynamic<any>(() => import("@/components/AmapView"), { ssr: false });
+const VoiceInput = dynamic<any>(() => import("@/components/VoiceInput"), { ssr: false });
 
 export default function Home() {
   const [inputText, setInputText] = useState("");
@@ -17,7 +18,6 @@ export default function Home() {
   const [plan, setPlan] = useState<any>(null);
   const [loading, setLoading] = useState(false);
 
-  // 本地费用分桶 key（未保存前用 draft；保存后我们会改成 tripId）
   const [tripKey, setTripKey] = useState<string>("draft");
   const [tripId, setTripId] = useState<string | null>(null);
 
@@ -47,12 +47,12 @@ export default function Home() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ input: inputText }),
       });
+
       const data = await resp.json();
       if (!resp.ok) throw new Error(`${data?.error ?? "request failed"}\n${data?.detail ?? ""}`);
 
       setPlan(data);
 
-      // 新计划：视为未保存的草稿
       setTripId(null);
       const newDraftKey = `draft_${Date.now()}`;
       setTripKey(newDraftKey);
@@ -78,7 +78,7 @@ export default function Home() {
           currentPlan={plan}
           onTripIdChange={(id) => {
             setTripId(id);
-            if (id) setTripKey(id); // 保存后，本地 key 也用 tripId，便于一致性
+            if (id) setTripKey(id);
           }}
           onLoadTrip={(t: TripRow) => {
             setPlan(t.plan);
@@ -92,9 +92,9 @@ export default function Home() {
           <div className="font-medium">需求输入</div>
 
           <VoiceInput
-            onText={(text, isFinal) => {
+            onText={(text: string, isFinal: boolean) => {
               if (isFinal) {
-                setInputText((prev) => (prev ? prev + text : text));
+                setInputText((prev: string) => (prev ? prev + text : text));
                 setInterim("");
               } else {
                 setInterim(text);

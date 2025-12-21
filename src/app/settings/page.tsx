@@ -1,59 +1,71 @@
+// src/app/settings/page.tsx
 "use client";
 
 import { useEffect, useState } from "react";
-
-const LS_AMAP_KEY = "ai_travel_planner_amap_key";
-const LS_AMAP_SECURITY = "ai_travel_planner_amap_security_js_code";
+import { useRouter } from "next/navigation";
+import { supabase } from "@/lib/supabaseClient";
 
 export default function SettingsPage() {
-  const [amapKey, setAmapKey] = useState("");
-  const [securityJsCode, setSecurityJsCode] = useState("");
-  const [saved, setSaved] = useState(false);
+  const router = useRouter();
+  const [email, setEmail] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    setAmapKey(localStorage.getItem(LS_AMAP_KEY) ?? "");
-    setSecurityJsCode(localStorage.getItem(LS_AMAP_SECURITY) ?? "");
+    (async () => {
+      if (!supabase) return;
+      const { data } = await supabase.auth.getUser();
+      setEmail(data.user?.email ?? null);
+    })();
   }, []);
 
-  function save() {
-    localStorage.setItem(LS_AMAP_KEY, amapKey.trim());
-    localStorage.setItem(LS_AMAP_SECURITY, securityJsCode.trim());
-    setSaved(true);
-    setTimeout(() => setSaved(false), 1200);
+  async function logout() {
+    if (!supabase) {
+      alert("未配置 Supabase：无需登出（云端功能不可用）。");
+      return;
+    }
+    try {
+      setLoading(true);
+      await supabase.auth.signOut();
+      router.replace("/");
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
-    <div className="mx-auto max-w-2xl p-6 space-y-6">
-      <h1 className="text-2xl font-bold">设置</h1>
+    <div style={{ maxWidth: 720, margin: "24px auto", padding: "0 16px" }}>
+      <h2 style={{ margin: 0 }}>设置</h2>
 
-      <div className="space-y-2">
-        <div className="font-medium">高德 Web Key</div>
-        <input
-          className="w-full rounded border p-2"
-          placeholder="在高德控制台创建 Web(JSAPI) Key"
-          value={amapKey}
-          onChange={(e) => setAmapKey(e.target.value)}
-        />
-      </div>
+      {!supabase ? (
+        <div style={{ marginTop: 12, color: "#c00", fontSize: 12 }}>
+          未配置 Supabase：云端账号功能不可用。
+        </div>
+      ) : (
+        <div style={{ marginTop: 12, fontSize: 14 }}>当前账号：{email ?? "未登录"}</div>
+      )}
 
-      <div className="space-y-2">
-        <div className="font-medium">安全密钥（securityJsCode）</div>
-        <input
-          className="w-full rounded border p-2"
-          placeholder="在高德控制台里找到 securityJsCode"
-          value={securityJsCode}
-          onChange={(e) => setSecurityJsCode(e.target.value)}
-        />
-      </div>
+      <div style={{ marginTop: 16, display: "flex", gap: 10 }}>
+        <button
+          onClick={() => router.push("/")}
+          style={{ padding: "8px 12px", borderRadius: 8, border: "1px solid #ccc", background: "#fff" }}
+        >
+          返回首页
+        </button>
 
-      <button className="rounded bg-black text-white px-4 py-2" onClick={save}>
-        保存
-      </button>
-
-      {saved && <div className="text-green-600">已保存 ✅</div>}
-
-      <div className="text-sm text-gray-600">
-        Key 只保存在浏览器 localStorage，不会写进代码仓库。
+        <button
+          onClick={logout}
+          disabled={!supabase || loading}
+          style={{
+            padding: "8px 12px",
+            borderRadius: 8,
+            border: "1px solid #111",
+            background: "#111",
+            color: "#fff",
+            opacity: !supabase || loading ? 0.6 : 1,
+          }}
+        >
+          {loading ? "处理中..." : "退出登录"}
+        </button>
       </div>
     </div>
   );

@@ -1,51 +1,46 @@
+// src/app/login/page.tsx
 "use client";
 
 import { useState } from "react";
-import { supabase } from "@/lib/supabaseClient";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
-
-function isValidEmail(email: string) {
-  // 足够用的基础校验（不用太复杂）
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-}
+import { supabase } from "@/lib/supabaseClient";
 
 export default function LoginPage() {
-  const [email, setEmail] = useState("");
-  const [pwd, setPwd] = useState("");
-  const [mode, setMode] = useState<"login" | "signup">("login");
-  const [loading, setLoading] = useState(false);
   const router = useRouter();
 
-  async function submit() {
-    const emailTrim = email.trim();
-    const pwdTrim = pwd.trim();
+  const [mode, setMode] = useState<"login" | "signup">("login");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
 
-    if (!isValidEmail(emailTrim)) {
-      alert("邮箱格式不正确，请输入类似 abc@qq.com 的格式（注意不要有空格/全角符号）。");
+  const [loading, setLoading] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+
+  function isEmailValid(v: string) {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
+  }
+
+  async function onSubmit() {
+    if (!supabase) {
+      alert("未配置 Supabase：无法登录/注册（云端功能不可用）。");
       return;
     }
-    if (pwdTrim.length < 6) {
-      alert("密码至少 6 位。");
+    if (!isEmailValid(email)) {
+      alert("邮箱格式不正确");
       return;
     }
 
-    setLoading(true);
     try {
-      if (mode === "signup") {
-        const { error } = await supabase.auth.signUp({
-          email: emailTrim,
-          password: pwdTrim,
-        });
+      setLoading(true);
+      setMsg(null);
+
+      if (mode === "login") {
+        const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
-        alert("注册成功 ✅（如果你开启了邮箱验证，请先去邮箱确认）");
+        router.replace("/");
       } else {
-        const { error } = await supabase.auth.signInWithPassword({
-          email: emailTrim,
-          password: pwdTrim,
-        });
+        const { error } = await supabase.auth.signUp({ email, password });
         if (error) throw error;
-        router.push("/");
+        setMsg("注册成功：若开启邮箱确认，请先去邮箱完成验证后再登录。");
       }
     } catch (e: any) {
       alert(e?.message ?? String(e));
@@ -55,49 +50,67 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="mx-auto max-w-md p-6 space-y-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">{mode === "login" ? "登录" : "注册"}</h1>
-        <Link className="text-sm underline" href="/">
-          返回首页
-        </Link>
-      </div>
+    <div style={{ minHeight: "100vh", display: "grid", placeItems: "center" }}>
+      <div style={{ width: 420, maxWidth: "90vw", border: "1px solid #ddd", borderRadius: 10, padding: 16 }}>
+        <div style={{ fontWeight: 800, fontSize: 18 }}>{mode === "login" ? "登录" : "注册"}</div>
 
-      <input
-        className="w-full rounded border p-2"
-        placeholder="Email（例如 abc@qq.com）"
-        value={email}
-        onChange={(e) => setEmail(e.target.value)}
-        autoCapitalize="none"
-        autoCorrect="off"
-        inputMode="email"
-      />
-      <input
-        className="w-full rounded border p-2"
-        placeholder="Password（至少6位）"
-        type="password"
-        value={pwd}
-        onChange={(e) => setPwd(e.target.value)}
-      />
+        {!supabase ? (
+          <div style={{ marginTop: 10, color: "#c00", fontSize: 12 }}>
+            未配置 Supabase：本项目仍可本地使用，但无法进行云端登录/保存。
+          </div>
+        ) : null}
 
-      <button
-        className="w-full rounded bg-black text-white px-4 py-2 disabled:opacity-50"
-        onClick={submit}
-        disabled={loading}
-      >
-        {loading ? "处理中…" : mode === "login" ? "登录" : "注册"}
-      </button>
+        <div style={{ marginTop: 12 }}>
+          <input
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="邮箱"
+            style={{ width: "100%", padding: 10, borderRadius: 8, border: "1px solid #ccc" }}
+          />
+        </div>
 
-      <button
-        className="w-full rounded border px-4 py-2"
-        onClick={() => setMode(mode === "login" ? "signup" : "login")}
-        disabled={loading}
-      >
-        切换到：{mode === "login" ? "注册" : "登录"}
-      </button>
+        <div style={{ marginTop: 10 }}>
+          <input
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="密码"
+            type="password"
+            style={{ width: "100%", padding: 10, borderRadius: 8, border: "1px solid #ccc" }}
+          />
+        </div>
 
-      <div className="text-xs text-gray-500">
-        如果你不想邮箱验证：Supabase 控制台 Authentication → Settings 里可以关闭 Email confirmations（开发阶段用）。
+        <button
+          onClick={onSubmit}
+          disabled={loading || !email || !password || !supabase}
+          style={{
+            marginTop: 12,
+            width: "100%",
+            padding: 10,
+            borderRadius: 8,
+            border: "1px solid #111",
+            background: "#111",
+            color: "#fff",
+            opacity: loading || !supabase ? 0.6 : 1,
+          }}
+        >
+          {loading ? "处理中..." : mode === "login" ? "登录" : "注册"}
+        </button>
+
+        <button
+          onClick={() => setMode((m) => (m === "login" ? "signup" : "login"))}
+          style={{
+            marginTop: 10,
+            width: "100%",
+            padding: 10,
+            borderRadius: 8,
+            border: "1px solid #ccc",
+            background: "#fff",
+          }}
+        >
+          切换到：{mode === "login" ? "注册" : "登录"}
+        </button>
+
+        {msg ? <div style={{ marginTop: 10, fontSize: 12, color: "#333" }}>{msg}</div> : null}
       </div>
     </div>
   );
