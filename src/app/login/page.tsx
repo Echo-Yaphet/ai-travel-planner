@@ -3,7 +3,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { supabase } from "@/lib/supabaseClient";
+import { supabase, isSupabaseEnabled } from "@/lib/supabaseClient";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -15,17 +15,9 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
 
-  function isEmailValid(v: string) {
-    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
-  }
-
   async function onSubmit() {
     if (!supabase) {
       alert("未配置 Supabase：无法登录/注册（云端功能不可用）。");
-      return;
-    }
-    if (!isEmailValid(email)) {
-      alert("邮箱格式不正确");
       return;
     }
 
@@ -54,7 +46,7 @@ export default function LoginPage() {
       <div style={{ width: 420, maxWidth: "90vw", border: "1px solid #ddd", borderRadius: 10, padding: 16 }}>
         <div style={{ fontWeight: 800, fontSize: 18 }}>{mode === "login" ? "登录" : "注册"}</div>
 
-        {!supabase ? (
+        {!isSupabaseEnabled ? (
           <div style={{ marginTop: 10, color: "#c00", fontSize: 12 }}>
             未配置 Supabase：本项目仍可本地使用，但无法进行云端登录/保存。
           </div>
@@ -81,7 +73,7 @@ export default function LoginPage() {
 
         <button
           onClick={onSubmit}
-          disabled={loading || !email || !password || !supabase}
+          disabled={loading || !email || !password || !isSupabaseEnabled}
           style={{
             marginTop: 12,
             width: "100%",
@@ -90,7 +82,8 @@ export default function LoginPage() {
             border: "1px solid #111",
             background: "#111",
             color: "#fff",
-            opacity: loading || !supabase ? 0.6 : 1,
+            opacity: loading || !isSupabaseEnabled ? 0.6 : 1,
+            cursor: loading || !isSupabaseEnabled ? "not-allowed" : "pointer",
           }}
         >
           {loading ? "处理中..." : mode === "login" ? "登录" : "注册"}
@@ -108,6 +101,20 @@ export default function LoginPage() {
           }}
         >
           切换到：{mode === "login" ? "注册" : "登录"}
+        </button>
+
+        <button
+          onClick={() => router.replace("/")}
+          style={{
+            marginTop: 10,
+            width: "100%",
+            padding: 10,
+            borderRadius: 8,
+            border: "1px solid #ccc",
+            background: "#fff",
+          }}
+        >
+          返回首页（离线模式也可用）
         </button>
 
         {msg ? <div style={{ marginTop: 10, fontSize: 12, color: "#333" }}>{msg}</div> : null}

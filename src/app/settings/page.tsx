@@ -3,7 +3,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { supabase } from "@/lib/supabaseClient";
+import { supabase, isSupabaseEnabled } from "@/lib/supabaseClient";
 
 export default function SettingsPage() {
   const router = useRouter();
@@ -36,9 +36,9 @@ export default function SettingsPage() {
     <div style={{ maxWidth: 720, margin: "24px auto", padding: "0 16px" }}>
       <h2 style={{ margin: 0 }}>设置</h2>
 
-      {!supabase ? (
+      {!isSupabaseEnabled ? (
         <div style={{ marginTop: 12, color: "#c00", fontSize: 12 }}>
-          未配置 Supabase：云端账号功能不可用。
+          未配置 Supabase：云端账号功能不可用（离线模式仍可用）。
         </div>
       ) : (
         <div style={{ marginTop: 12, fontSize: 14 }}>当前账号：{email ?? "未登录"}</div>
@@ -54,14 +54,14 @@ export default function SettingsPage() {
 
         <button
           onClick={logout}
-          disabled={!supabase || loading}
+          disabled={!isSupabaseEnabled || loading}
           style={{
             padding: "8px 12px",
             borderRadius: 8,
             border: "1px solid #111",
             background: "#111",
             color: "#fff",
-            opacity: !supabase || loading ? 0.6 : 1,
+            opacity: !isSupabaseEnabled || loading ? 0.6 : 1,
           }}
         >
           {loading ? "处理中..." : "退出登录"}

@@ -5,24 +5,24 @@ on:
     tags:
       - "v*.*.*"
 
-permissions:
-  contents: write
-  packages: write
-
 jobs:
   build_push_release:
     runs-on: ubuntu-latest
 
+    permissions:
+      contents: write
+      packages: write
+      actions: read
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
-      - name: Set variables (lowercase GHCR repo)
+      - name: Set variables
+        shell: bash
         run: |
-          REPO_LOWER=$(echo "${GITHUB_REPOSITORY}" | tr '[:upper:]' '[:lower:]')
-          echo "IMAGE_NAME=ghcr.io/${REPO_LOWER}:latest" >> $GITHUB_ENV
+          REPO_LC=$(echo "$GITHUB_REPOSITORY" | tr '[:upper:]' '[:lower:]')
+          echo "IMAGE_NAME=ghcr.io/${REPO_LC}/ai-travel-planner:latest" >> $GITHUB_ENV
           echo "TAR_NAME=ai-travel-planner_${GITHUB_REF_NAME}.tar" >> $GITHUB_ENV
 
       - name: Set up Docker Buildx
@@ -36,7 +36,12 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build image
-        run: docker build -t $IMAGE_NAME .
+        shell: bash
+        run: |
+          docker build \
+            --build-arg NEXT_PUBLIC_SUPABASE_URL="${{ vars.NEXT_PUBLIC_SUPABASE_URL }}" \
+            --build-arg NEXT_PUBLIC_SUPABASE_ANON_KEY="${{ vars.NEXT_PUBLIC_SUPABASE_ANON_KEY }}" \
+            -t $IMAGE_NAME .
 
       - name: Push image
         run: docker push $IMAGE_NAME
@@ -49,6 +54,5 @@ jobs:
       - name: Create Release and Upload Asset
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.ref_name }}
           files: ${{ env.TAR_NAME }}
           generate_release_notes: true

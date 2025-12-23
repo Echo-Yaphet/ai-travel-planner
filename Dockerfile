@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 
-# 1) deps: 安装全量依赖（包含 devDependencies，供 next build 使用）
+# 1) deps: 安装全量依赖（供 next build 使用）
 FROM node:20-alpine AS deps
 WORKDIR /app
 COPY package.json package-lock.json ./
@@ -19,16 +19,15 @@ FROM node:20-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
+ENV PORT=3000
 
-# 仅生产依赖
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev
 
-# 运行所需文件
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next ./.next
 
-# ✅ 只保留 mjs 配置（没有就删掉这行）
+# ✅ 建议你仓库里只保留 next.config.mjs（没有就删这一行）
 COPY --from=builder /app/next.config.mjs ./next.config.mjs
 
 EXPOSE 3000
